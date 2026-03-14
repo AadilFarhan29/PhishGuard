@@ -1,0 +1,265 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PhishGuard</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+    <div class="page-bg"></div>
+    <div class="page-glow page-glow-left"></div>
+    <div class="page-glow page-glow-right"></div>
+
+    <div class="container">
+        <div class="app-shell">
+
+            <div class="hero-card glass">
+                <div class="hero-left">
+                    <div class="eyebrow">HYBRID PHISHING DETECTION • ML • NLP • WEBPAGE ANALYSIS</div>
+                    <h1>PhishGuard</h1>
+                    <p class="subtitle">
+                        A hybrid phishing detection platform that combines machine learning,
+                        NLP-based URL analysis, webpage inspection, and explainable risk scoring.
+                    </p>
+
+                    <form method="POST" class="scan-form">
+                        <label for="url">Enter a URL to analyze</label>
+                        <div class="input-row">
+                            <input
+                                type="text"
+                                id="url"
+                                name="url"
+                                placeholder="https://example.com"
+                                value="{{ submitted_url }}"
+                                required
+                            >
+                            <button type="submit">Analyze URL</button>
+                        </div>
+                    </form>
+                </div>
+
+                <div class="hero-right glass-inner">
+                    <h3>What PhishGuard checks</h3>
+                    <div class="mini-points">
+                        <div class="mini-point">
+                            <span class="dot"></span>
+                            <p><strong>Machine Learning:</strong> URL structure classification using the trained Random Forest model.</p>
+                        </div>
+                        <div class="mini-point">
+                            <span class="dot"></span>
+                            <p><strong>NLP Analysis:</strong> Suspicious terms, brand impersonation, and phishing-related language patterns.</p>
+                        </div>
+                        <div class="mini-point">
+                            <span class="dot"></span>
+                            <p><strong>Webpage Inspection:</strong> Forms, password fields, iframes, scripts, and external links.</p>
+                        </div>
+                        <div class="mini-point">
+                            <span class="dot"></span>
+                            <p><strong>Hybrid Risk Engine:</strong> Combines all layers into one final verdict with reasoning.</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            {% if result %}
+            <div class="dashboard-grid">
+
+                <div class="main-panel glass">
+                    <div class="panel-header">
+                        <div>
+                            <p class="section-kicker">SCAN RESULT</p>
+                            <h2>Final Verdict</h2>
+                            <p class="muted-url">{{ submitted_url }}</p>
+                        </div>
+
+                        <div class="risk-badge
+                            {% if risk_level == 'High' %}
+                                risk-high
+                            {% elif risk_level == 'Medium' %}
+                                risk-medium
+                            {% elif risk_level == 'Low' %}
+                                risk-low
+                            {% else %}
+                                risk-neutral
+                            {% endif %}
+                        ">
+                            {{ risk_level }}
+                        </div>
+                    </div>
+
+                    <div class="summary-grid">
+                        <div class="summary-card glass-inner">
+                            <span class="summary-label">Status</span>
+                            <span class="summary-value">{{ result }}</span>
+                        </div>
+
+                        <div class="summary-card glass-inner">
+                            <span class="summary-label">Final Confidence</span>
+                            <span class="summary-value">
+                                {% if probability is not none %}
+                                    {{ probability }}%
+                                {% else %}
+                                    N/A
+                                {% endif %}
+                            </span>
+                        </div>
+                    </div>
+
+                    {% if probability is not none %}
+                    <div class="meter-wrap
+                        {% if risk_level == 'High' %}
+                            meter-glow-high
+                        {% elif risk_level == 'Medium' %}
+                            meter-glow-medium
+                        {% elif risk_level == 'Low' %}
+                            meter-glow-low
+                        {% else %}
+                            meter-glow-neutral
+                        {% endif %}
+                    ">
+                        <div class="meter-top">
+                            <span>Hybrid Risk Meter</span>
+                            <span>{{ probability }}%</span>
+                        </div>
+
+                        <div class="meter-track">
+                            <div class="meter-fill
+                                {% if risk_level == 'High' %}
+                                    meter-fill-high
+                                {% elif risk_level == 'Medium' %}
+                                    meter-fill-medium
+                                {% elif risk_level == 'Low' %}
+                                    meter-fill-low
+                                {% else %}
+                                    meter-fill-neutral
+                                {% endif %}
+                            " style="width: {{ probability }}%;"></div>
+                        </div>
+
+                        <div class="meter-labels">
+                            <span>Low</span>
+                            <span>Review</span>
+                            <span>High</span>
+                        </div>
+                    </div>
+                    {% endif %}
+
+                    <div class="details-card glass-inner">
+                        <h3>Why this result was given</h3>
+                        <ul class="reasons-list">
+                            {% for reason in reasons %}
+                            <li>{{ reason }}</li>
+                            {% endfor %}
+                        </ul>
+                    </div>
+
+                    <div class="details-card glass-inner">
+                        <h3>Recommendation</h3>
+
+                        {% if risk_level == "High" %}
+                        <p class="warning">
+                            Avoid entering personal or financial information on this link.
+                            Verify the source before opening it.
+                        </p>
+                        {% elif risk_level == "Medium" %}
+                        <p class="neutral-note">
+                            This URL shows suspicious indicators. Review it carefully before interacting with it.
+                        </p>
+                        {% elif risk_level == "Low" %}
+                        <p class="safe">
+                            No strong phishing indicators were found, but users should still verify unfamiliar URLs before trusting them.
+                        </p>
+                        {% else %}
+                        <p class="neutral-note">Result unavailable.</p>
+                        {% endif %}
+                    </div>
+                </div>
+
+                <div class="side-panel">
+
+                    <div class="engine-card glass">
+                        <p class="section-kicker">ENGINE 01</p>
+                        <h3>Machine Learning Layer</h3>
+
+                        {% if ml_result %}
+                        <p><strong>ML Result:</strong> {{ ml_result }}</p>
+                        {% endif %}
+
+                        {% if ml_confidence is not none %}
+                        <p><strong>ML Confidence:</strong> {{ ml_confidence }}%</p>
+                        {% endif %}
+                    </div>
+
+                    <div class="engine-card glass">
+                        <p class="section-kicker">ENGINE 02</p>
+                        <h3>NLP Analysis</h3>
+
+                        {% if nlp_score is not none %}
+                        <p><strong>NLP Risk Score:</strong> {{ nlp_score }}/100</p>
+
+                        <p>
+                            <strong>Suspicious Keywords:</strong>
+                            {% if suspicious_keywords %}
+                                {{ suspicious_keywords | join(", ") }}
+                            {% else %}
+                                None detected
+                            {% endif %}
+                        </p>
+
+                        <p>
+                            <strong>Brand Keywords:</strong>
+                            {% if brand_keywords %}
+                                {{ brand_keywords | join(", ") }}
+                            {% else %}
+                                None detected
+                            {% endif %}
+                        </p>
+                        {% else %}
+                        <p>No NLP analysis available.</p>
+                        {% endif %}
+                    </div>
+
+                    <div class="engine-card glass">
+                        <p class="section-kicker">ENGINE 03</p>
+                        <h3>Webpage Inspection</h3>
+
+                        {% if page_result %}
+                            {% if page_result.page_accessible %}
+                                <p><strong>Status:</strong> Successfully analyzed</p>
+                                <p><strong>Forms:</strong> {{ page_result.forms }}</p>
+                                <p><strong>Password fields:</strong> {{ page_result.password_fields }}</p>
+                                <p><strong>Iframes:</strong> {{ page_result.iframes }}</p>
+                                <p><strong>External scripts:</strong> {{ page_result.external_scripts }}</p>
+                                <p><strong>External links:</strong> {{ page_result.external_links }}</p>
+                                <p><strong>Has favicon:</strong> {{ page_result.has_favicon }}</p>
+                            {% else %}
+                                <p><strong>Status:</strong> Blocked or unavailable</p>
+
+                                <p class="neutral-note">
+                                    Webpage inspection could not be completed for this site.
+                                    The final decision currently relies on URL structure analysis and NLP indicators.
+                                </p>
+
+                                {% if page_result.status_code %}
+                                <p><strong>HTTP Status:</strong> {{ page_result.status_code }}</p>
+                                {% endif %}
+
+                                {% if page_result.errors %}
+                                <p><strong>Inspection Note:</strong> {{ page_result.errors }}</p>
+                                {% endif %}
+                            {% endif %}
+                        {% else %}
+                            <p>No webpage inspection data available.</p>
+                        {% endif %}
+                    </div>
+
+                </div>
+
+            </div>
+            {% endif %}
+
+        </div>
+    </div>
+</body>
+</html>
