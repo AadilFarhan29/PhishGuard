@@ -1,9 +1,8 @@
 flask
 pandas
-numpy
 scikit-learn
 joblib
-matplotlib
-seaborn
 requests
 beautifulsoup4
+lxml
+matplotlib
