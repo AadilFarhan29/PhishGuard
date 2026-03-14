@@ -1,29 +1,8 @@
-def evaluate_risk(ml_prediction, ml_confidence, nlp_result, page_result):
-    """
-    Combines:
-    - ML prediction
-    - ML confidence
-    - NLP URL analysis
-    - Webpage inspection
-
-    Returns:
-    {
-        "final_result": "...",
-        "final_risk_level": "...",
-        "final_confidence": ...,
-        "risk_reasons": [...]
-    }
-    """
-
+def evaluate_risk(ml_prediction, ml_confidence, nlp_result, page_result, domain_result=None):
     risk_score = 0
     reasons = []
 
-    # -----------------------------
     # 1. Machine Learning Layer
-    # Dataset mapping:
-    # 1 = legitimate
-    # 0 = phishing
-    # -----------------------------
     if ml_prediction == 0:
         risk_score += 45
         reasons.append("The machine learning model classified the URL as phishing.")
@@ -42,9 +21,7 @@ def evaluate_risk(ml_prediction, ml_confidence, nlp_result, page_result):
             risk_score -= 10
             reasons.append("The legitimate prediction confidence is very high.")
 
-    # -----------------------------
     # 2. NLP Layer
-    # -----------------------------
     nlp_score = nlp_result.get("nlp_risk_score", 0)
     suspicious_keywords = nlp_result.get("suspicious_keywords", [])
     brand_keywords = nlp_result.get("brand_keywords", [])
@@ -71,9 +48,22 @@ def evaluate_risk(ml_prediction, ml_confidence, nlp_result, page_result):
             f"Brand-related terms combined with suspicious words were detected: {', '.join(brand_keywords)}"
         )
 
-    # -----------------------------
-    # 3. Webpage Inspection Layer
-    # -----------------------------
+    # 3. Domain Legitimacy Layer
+    if domain_result:
+        domain_score = domain_result.get("domain_risk_score", 25)
+        risk_score += (domain_score - 25)
+
+        reasons.extend(domain_result.get("domain_reasons", []))
+
+        if domain_result.get("brand_domain_match"):
+            risk_score -= 25
+            reasons.append("The detected brand appears on a matching trusted official domain.")
+
+        if domain_result.get("brand_spoofing_suspected"):
+            risk_score += 30
+            reasons.append("The URL may be impersonating a trusted brand on an unrelated domain.")
+
+    # 4. Webpage Inspection Layer
     if page_result:
         if page_result.get("page_accessible"):
             reasons.append("Webpage inspection was completed successfully.")
@@ -109,7 +99,16 @@ def evaluate_risk(ml_prediction, ml_confidence, nlp_result, page_result):
                 risk_score -= 3
                 reasons.append("The webpage includes a favicon, which is a mild legitimacy signal.")
 
-            # Safe-ish override conditions
+            if (
+                domain_result
+                and domain_result.get("trusted_domain")
+                and domain_result.get("brand_domain_match")
+                and password_fields > 0
+                and nlp_score < 40
+            ):
+                risk_score -= 35
+                reasons.append("The login page appears to belong to a trusted official domain, reducing phishing suspicion.")
+
             if (
                 password_fields == 0
                 and forms <= 5
@@ -121,18 +120,14 @@ def evaluate_risk(ml_prediction, ml_confidence, nlp_result, page_result):
                 reasons.append("Webpage structure appears relatively normal and does not reinforce phishing suspicion.")
 
         else:
-            reasons.append("Webpage inspection could not be completed, so the final result relies more on ML and NLP.")
+            reasons.append("Webpage inspection could not be completed, so the final result relies more on ML, NLP, and domain validation.")
     else:
         reasons.append("No webpage inspection data was available.")
 
-    # -----------------------------
-    # 4. Clamp score
-    # -----------------------------
+    # 5. Clamp
     risk_score = max(0, min(risk_score, 100))
 
-    # -----------------------------
-    # 5. Final verdict
-    # -----------------------------
+    # 6. Final verdict
     if risk_score >= 70:
         final_result = "Potential Phishing"
         final_risk_level = "High"

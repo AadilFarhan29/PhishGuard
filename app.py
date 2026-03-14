@@ -6,6 +6,7 @@ from flask import Flask, render_template, request
 from utils.features import extract_url_features
 from utils.nlp_analyzer import analyze_url_nlp
 from utils.page_analyzer import analyze_webpage
+from utils.domain_validator import validate_domain
 from utils.risk_engine import evaluate_risk
 
 app = Flask(__name__)
@@ -72,6 +73,7 @@ def index():
     brand_keywords = []
 
     page_result = None
+    domain_result = None
 
     ml_result = None
     ml_confidence = None
@@ -88,19 +90,16 @@ def index():
                 risk_level = "Unavailable"
                 reasons = ["The live model or feature configuration could not be loaded."]
             else:
-                # URL feature extraction
                 extracted_features = extract_url_features(submitted_url)
 
-                # NLP analysis
                 nlp_result = analyze_url_nlp(submitted_url)
                 nlp_score = nlp_result["nlp_risk_score"]
                 suspicious_keywords = nlp_result["suspicious_keywords"]
                 brand_keywords = nlp_result["brand_keywords"]
 
-                # Webpage inspection
                 page_result = analyze_webpage(submitted_url)
+                domain_result = validate_domain(submitted_url, brand_keywords=brand_keywords)
 
-                # Prepare model input
                 feature_row = {col: extracted_features.get(col, 0) for col in feature_columns}
                 feature_df = pd.DataFrame([feature_row])
 
@@ -120,22 +119,20 @@ def index():
                     ml_result = "Potential Phishing"
                     ml_confidence = round(proba[0] * 100, 2) if proba is not None else None
 
-                # Base structural explanations
                 url_reasons = generate_explanations(extracted_features)
 
-                # Hybrid risk evaluation
                 hybrid_result = evaluate_risk(
                     ml_prediction=prediction,
                     ml_confidence=ml_confidence,
                     nlp_result=nlp_result,
-                    page_result=page_result
+                    page_result=page_result,
+                    domain_result=domain_result
                 )
 
                 result = hybrid_result["final_result"]
                 risk_level = hybrid_result["final_risk_level"]
                 confidence = hybrid_result["final_confidence"]
 
-                # Merge reasons
                 reasons = url_reasons + hybrid_result["risk_reasons"]
 
     return render_template(
@@ -149,6 +146,7 @@ def index():
         suspicious_keywords=suspicious_keywords,
         brand_keywords=brand_keywords,
         page_result=page_result,
+        domain_result=domain_result,
         ml_result=ml_result,
         ml_confidence=ml_confidence
     )

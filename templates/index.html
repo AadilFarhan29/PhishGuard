@@ -20,7 +20,7 @@
                     <h1>PhishGuard</h1>
                     <p class="subtitle">
                         A hybrid phishing detection platform that combines machine learning,
-                        NLP-based URL analysis, webpage inspection, and explainable risk scoring.
+                        NLP-based URL analysis, webpage inspection, domain validation, and explainable risk scoring.
                     </p>
 
                     <form method="POST" class="scan-form">
@@ -56,7 +56,7 @@
                         </div>
                         <div class="mini-point">
                             <span class="dot"></span>
-                            <p><strong>Hybrid Risk Engine:</strong> Combines all layers into one final verdict with reasoning.</p>
+                            <p><strong>Domain Validator:</strong> Checks whether brand keywords match trusted official domains.</p>
                         </div>
                     </div>
                 </div>
@@ -232,13 +232,13 @@
                                 <p><strong>Iframes:</strong> {{ page_result.iframes }}</p>
                                 <p><strong>External scripts:</strong> {{ page_result.external_scripts }}</p>
                                 <p><strong>External links:</strong> {{ page_result.external_links }}</p>
-                                <p><strong>Has favicon:</strong> {{ page_result.has_favicon }}</p>
+                                <p><strong>Favicon:</strong> {{ page_result.has_favicon }}</p>
                             {% else %}
                                 <p><strong>Status:</strong> Blocked or unavailable</p>
 
                                 <p class="neutral-note">
                                     Webpage inspection could not be completed for this site.
-                                    The final decision currently relies on URL structure analysis and NLP indicators.
+                                    The final decision currently relies on URL structure analysis, NLP indicators, and domain validation.
                                 </p>
 
                                 {% if page_result.status_code %}
@@ -251,6 +251,22 @@
                             {% endif %}
                         {% else %}
                             <p>No webpage inspection data available.</p>
+                        {% endif %}
+                    </div>
+
+                    <div class="engine-card glass">
+                        <p class="section-kicker">ENGINE 04</p>
+                        <h3>Domain Validator</h3>
+
+                        {% if domain_result %}
+                            <p><strong>Hostname:</strong> {{ domain_result.hostname }}</p>
+                            <p><strong>Root Domain:</strong> {{ domain_result.root_domain }}</p>
+                            <p><strong>Trusted Domain:</strong> {{ domain_result.trusted_domain }}</p>
+                            <p><strong>Brand-Domain Match:</strong> {{ domain_result.brand_domain_match }}</p>
+                            <p><strong>Brand Spoofing Suspected:</strong> {{ domain_result.brand_spoofing_suspected }}</p>
+                            <p><strong>Domain Risk Score:</strong> {{ domain_result.domain_risk_score }}/100</p>
+                        {% else %}
+                            <p>No domain validation data available.</p>
                         {% endif %}
                     </div>
 
