@@ -7,6 +7,7 @@ from utils.features import extract_url_features
 from utils.nlp_analyzer import analyze_url_nlp
 from utils.page_analyzer import analyze_webpage
 from utils.domain_validator import validate_domain
+from utils.redirect_analyzer import analyze_redirects
 from utils.risk_engine import evaluate_risk
 
 app = Flask(__name__)
@@ -64,8 +65,10 @@ def generate_explanations(features):
 def index():
     result = None
     risk_level = None
-    confidence = None
+    final_score = None
+    analysis_confidence = None
     reasons = []
+    top_findings = []
     submitted_url = ""
 
     nlp_score = None
@@ -74,6 +77,8 @@ def index():
 
     page_result = None
     domain_result = None
+    redirect_result = None
+    hybrid_result = None
 
     ml_result = None
     ml_confidence = None
@@ -97,8 +102,14 @@ def index():
                 suspicious_keywords = nlp_result["suspicious_keywords"]
                 brand_keywords = nlp_result["brand_keywords"]
 
-                page_result = analyze_webpage(submitted_url)
-                domain_result = validate_domain(submitted_url, brand_keywords=brand_keywords)
+                redirect_result = analyze_redirects(submitted_url, brand_keywords=brand_keywords)
+                final_analysis_url = redirect_result.get("final_url") if redirect_result else submitted_url
+                page_result = analyze_webpage(final_analysis_url)
+                domain_result = validate_domain(
+                    submitted_url,
+                    brand_keywords=brand_keywords,
+                    final_url=final_analysis_url
+                )
 
                 feature_row = {col: extracted_features.get(col, 0) for col in feature_columns}
                 feature_df = pd.DataFrame([feature_row])
@@ -126,27 +137,35 @@ def index():
                     ml_confidence=ml_confidence,
                     nlp_result=nlp_result,
                     page_result=page_result,
-                    domain_result=domain_result
+                    domain_result=domain_result,
+                    redirect_result=redirect_result,
+                    extracted_features=extracted_features,
+                    url_reasons=url_reasons
                 )
 
                 result = hybrid_result["final_result"]
                 risk_level = hybrid_result["final_risk_level"]
-                confidence = hybrid_result["final_confidence"]
-
-                reasons = url_reasons + hybrid_result["risk_reasons"]
+                final_score = hybrid_result["final_score"]
+                analysis_confidence = hybrid_result["final_confidence"]
+                reasons = hybrid_result["reasons"]
+                top_findings = hybrid_result["top_findings"]
 
     return render_template(
         "index.html",
         result=result,
         risk_level=risk_level,
-        probability=confidence,
+        final_score=final_score,
+        analysis_confidence=analysis_confidence,
         reasons=reasons,
+        top_findings=top_findings,
         submitted_url=submitted_url,
         nlp_score=nlp_score,
         suspicious_keywords=suspicious_keywords,
         brand_keywords=brand_keywords,
         page_result=page_result,
         domain_result=domain_result,
+        redirect_result=redirect_result,
+        hybrid_result=hybrid_result,
         ml_result=ml_result,
         ml_confidence=ml_confidence
     )

@@ -5,6 +5,9 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>PhishGuard</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    {% if hybrid_result %}
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    {% endif %}
 </head>
 <body>
     <div class="page-bg"></div>
@@ -16,11 +19,12 @@
 
             <div class="hero-card glass">
                 <div class="hero-left">
-                    <div class="eyebrow">HYBRID PHISHING DETECTION • ML • NLP • WEBPAGE ANALYSIS</div>
+                    <div class="eyebrow">HYBRID PHISHING DETECTION - ML - NLP - WEBPAGE - REDIRECT INTELLIGENCE</div>
                     <h1>PhishGuard</h1>
                     <p class="subtitle">
-                        A hybrid phishing detection platform that combines machine learning,
-                        NLP-based URL analysis, webpage inspection, domain validation, and explainable risk scoring.
+                        Context-aware visual risk intelligence for phishing detection. PhishGuard combines URL structure
+                        modeling, linguistic signals, domain trust checks, redirect tracing, and live webpage inspection
+                        into one explainable Flask dashboard.
                     </p>
 
                     <form method="POST" class="scan-form">
@@ -40,242 +44,464 @@
                 </div>
 
                 <div class="hero-right glass-inner">
-                    <h3>What PhishGuard checks</h3>
+                    <h3>What the upgraded scan now explains</h3>
                     <div class="mini-points">
                         <div class="mini-point">
                             <span class="dot"></span>
-                            <p><strong>Machine Learning:</strong> URL structure classification using the trained Random Forest model.</p>
+                            <p><strong>Active Redirect Analysis:</strong> Tracks hop count, original host, final host, and brand consistency across redirects.</p>
                         </div>
                         <div class="mini-point">
                             <span class="dot"></span>
-                            <p><strong>NLP Analysis:</strong> Suspicious terms, brand impersonation, and phishing-related language patterns.</p>
+                            <p><strong>Context Rules:</strong> Weighs signals together instead of treating each indicator in isolation.</p>
                         </div>
                         <div class="mini-point">
                             <span class="dot"></span>
-                            <p><strong>Webpage Inspection:</strong> Forms, password fields, iframes, scripts, and external links.</p>
+                            <p><strong>Form Action Inspection:</strong> Checks whether login forms submit on-domain, off-domain, or to suspicious endpoints.</p>
                         </div>
                         <div class="mini-point">
                             <span class="dot"></span>
-                            <p><strong>Domain Validator:</strong> Checks whether brand keywords match trusted official domains.</p>
+                            <p><strong>Visual Explainability:</strong> Breaks the final verdict into engine scores, findings, and interactive charts.</p>
                         </div>
                     </div>
                 </div>
             </div>
 
-            {% if result %}
+            {% if result and hybrid_result %}
+            {% if risk_level == "High" %}
+                {% set verdict_summary = "Why? This URL shows strong signs of impersonation, risky destination changes, or suspicious login behavior." %}
+            {% elif risk_level == "Medium" %}
+                {% set verdict_summary = "Why? This URL shows mixed trust signals and enough suspicious behavior to justify a careful manual review." %}
+            {% elif risk_level == "Low" %}
+                {% set verdict_summary = "Why? This URL stayed relatively consistent and showed limited phishing-specific warning signs in the current scan." %}
+            {% else %}
+                {% set verdict_summary = "Why? The scan combined multiple signals to estimate the overall trust level of this URL." %}
+            {% endif %}
+
             <div class="dashboard-grid">
-
                 <div class="main-panel glass">
-                    <div class="panel-header">
-                        <div>
-                            <p class="section-kicker">SCAN RESULT</p>
-                            <h2>Final Verdict</h2>
-                            <p class="muted-url">{{ submitted_url }}</p>
+                    <section class="verdict-hero verdict-{{ risk_level|lower }}">
+                        <div class="verdict-copy">
+                            <p class="section-kicker">FINAL VERDICT</p>
+                            <h2>{{ result }}</h2>
+                            <p class="verdict-summary">{{ verdict_summary }}</p>
+                            <p class="verdict-url">{{ submitted_url }}</p>
+
+                            <div class="findings-row">
+                                {% for finding in top_findings %}
+                                <span class="finding-chip">{{ finding }}</span>
+                                {% endfor %}
+                            </div>
                         </div>
 
-                        <div class="risk-badge
-                            {% if risk_level == 'High' %}
-                                risk-high
-                            {% elif risk_level == 'Medium' %}
-                                risk-medium
-                            {% elif risk_level == 'Low' %}
-                                risk-low
-                            {% else %}
-                                risk-neutral
-                            {% endif %}
-                        ">
-                            {{ risk_level }}
-                        </div>
-                    </div>
-
-                    <div class="summary-grid">
-                        <div class="summary-card glass-inner">
-                            <span class="summary-label">Status</span>
-                            <span class="summary-value">{{ result }}</span>
-                        </div>
-
-                        <div class="summary-card glass-inner">
-                            <span class="summary-label">Final Confidence</span>
-                            <span class="summary-value">
-                                {% if probability is not none %}
-                                    {{ probability }}%
-                                {% else %}
-                                    N/A
-                                {% endif %}
-                            </span>
-                        </div>
-                    </div>
-
-                    {% if probability is not none %}
-                    <div class="meter-wrap
-                        {% if risk_level == 'High' %}
-                            meter-glow-high
-                        {% elif risk_level == 'Medium' %}
-                            meter-glow-medium
-                        {% elif risk_level == 'Low' %}
-                            meter-glow-low
-                        {% else %}
-                            meter-glow-neutral
-                        {% endif %}
-                    ">
-                        <div class="meter-top">
-                            <span>Hybrid Risk Meter</span>
-                            <span>{{ probability }}%</span>
-                        </div>
-
-                        <div class="meter-track">
-                            <div class="meter-fill
+                        <div class="verdict-metrics">
+                            <div class="risk-badge
                                 {% if risk_level == 'High' %}
-                                    meter-fill-high
+                                    risk-high
                                 {% elif risk_level == 'Medium' %}
-                                    meter-fill-medium
+                                    risk-medium
                                 {% elif risk_level == 'Low' %}
-                                    meter-fill-low
+                                    risk-low
                                 {% else %}
-                                    meter-fill-neutral
+                                    risk-neutral
                                 {% endif %}
-                            " style="width: {{ probability }}%;"></div>
+                            ">
+                                {{ risk_level }} Risk
+                            </div>
+
+                            <div class="score-orb">
+                                <span class="score-label">Final Score</span>
+                                <span class="score-value">{{ final_score }}%</span>
+                            </div>
+
+                            <div class="metric-pair">
+                                <div class="metric-box glass-inner">
+                                    <span class="metric-label">Analysis Confidence</span>
+                                    <strong>{{ analysis_confidence }}%</strong>
+                                </div>
+                                <div class="metric-box glass-inner">
+                                    <span class="metric-label">Redirect Hops</span>
+                                    <strong>{{ redirect_result.redirect_hops if redirect_result else 0 }}</strong>
+                                </div>
+                            </div>
+                        </div>
+                    </section>
+
+                    <section class="visual-explanation-section">
+                        <div class="chart-card chart-card-primary glass-inner">
+                            <div class="chart-header">
+                                <div>
+                                    <p class="section-kicker">ENGINE RADAR</p>
+                                    <h3>Risk Signal Shape</h3>
+                                </div>
+                                <span class="chart-hint">Hover points for explanations</span>
+                            </div>
+                            <div class="chart-wrap chart-wrap-radar">
+                                <canvas id="riskRadarChart"></canvas>
+                            </div>
+                            <div class="chart-insight">
+                                <span>Hover Insight</span>
+                                <p id="radarInsightText">{{ hybrid_result.engine_breakdown.ml.summary }}</p>
+                            </div>
+                        </div>
+                    </section>
+
+                    <div class="analysis-sections">
+                        <div class="details-card redirect-card glass-inner">
+                            <div class="section-header-inline">
+                                <div>
+                                    <p class="section-kicker">REDIRECT STORY</p>
+                                    <h3>Destination Trail</h3>
+                                </div>
+                                <span class="trail-tag">
+                                    {% if redirect_result and redirect_result.final_domain_trusted %}
+                                        Trusted Final Host
+                                    {% elif redirect_result and redirect_result.final_domain_differs %}
+                                        Cross-Domain Redirect
+                                    {% else %}
+                                        Direct / Stable
+                                    {% endif %}
+                                </span>
+                            </div>
+
+                            <div class="quick-stats-grid redirect-stats-grid">
+                                <div class="stat-tile glass-inner">
+                                    <span class="stat-label">Original Host</span>
+                                    <strong>{{ domain_result.hostname if domain_result else "N/A" }}</strong>
+                                </div>
+                                <div class="stat-tile glass-inner">
+                                    <span class="stat-label">Final Destination</span>
+                                    <strong>{{ redirect_result.final_hostname if redirect_result else "N/A" }}</strong>
+                                </div>
+                                <div class="stat-tile glass-inner">
+                                    <span class="stat-label">Redirect Match</span>
+                                    <strong>
+                                        {% if redirect_result and redirect_result.final_brand_match %}
+                                            Trusted Brand Match
+                                        {% elif redirect_result and redirect_result.final_domain_differs %}
+                                            Different Final Domain
+                                        {% else %}
+                                            Stable Destination
+                                        {% endif %}
+                                    </strong>
+                                </div>
+                                <div class="stat-tile glass-inner">
+                                    <span class="stat-label">Forms / Passwords</span>
+                                    <strong>
+                                        {% if page_result %}
+                                            {{ page_result.forms }} / {{ page_result.password_fields }}
+                                        {% else %}
+                                            N/A
+                                        {% endif %}
+                                    </strong>
+                                </div>
+                            </div>
+
+                            <div class="redirect-trail">
+                                {% if redirect_result and redirect_result.redirect_chain %}
+                                    {% for hop in redirect_result.redirect_chain %}
+                                    <div class="trail-node">
+                                        <span class="trail-host">{{ hop.hostname }}</span>
+                                        <span class="trail-status">HTTP {{ hop.status_code }}</span>
+                                    </div>
+                                    {% endfor %}
+                                {% else %}
+                                    <div class="trail-node">
+                                        <span class="trail-host">{{ submitted_url }}</span>
+                                        <span class="trail-status">No redirects observed</span>
+                                    </div>
+                                {% endif %}
+                            </div>
                         </div>
 
-                        <div class="meter-labels">
-                            <span>Low</span>
-                            <span>Review</span>
-                            <span>High</span>
+                        <section class="detail-breakdown-section">
+                            <div class="section-shell glass-inner">
+                                <div class="section-shell-header">
+                                    <div>
+                                        <p class="section-kicker">DETAILED BREAKDOWN</p>
+                                        <h3>Engine-by-Engine Analysis</h3>
+                                    </div>
+                                    <p class="section-shell-copy">These supporting views explain how each detection layer contributed after the quick verdict and redirect story.</p>
+                                </div>
+
+                                <div class="chart-card chart-card-secondary contribution-card">
+                                    <div class="chart-header">
+                                        <div>
+                                            <p class="section-kicker">CONTRIBUTION VIEW</p>
+                                            <h3>Final Score Composition</h3>
+                                        </div>
+                                        <span class="chart-hint">Hover bars for explanations</span>
+                                    </div>
+                                    <div class="chart-wrap chart-wrap-bar">
+                                        <canvas id="contributionChart"></canvas>
+                                    </div>
+                                    <div class="chart-insight">
+                                        <span>Hover Insight</span>
+                                        <p id="contributionInsightText">{{ hybrid_result.engine_breakdown.domain.summary }}</p>
+                                    </div>
+                                </div>
+
+                                <div class="engine-grid">
+                                    <div class="engine-card glass">
+                                        <p class="section-kicker">ENGINE 01</p>
+                                        <h3>Machine Learning</h3>
+                                        <div class="engine-score-row">
+                                            <span class="engine-score-pill">{{ hybrid_result.engine_breakdown.ml.score }}/100</span>
+                                            <span class="engine-contribution">Contribution {{ hybrid_result.engine_breakdown.ml.contribution }}</span>
+                                        </div>
+                                        <p class="engine-summary">{{ hybrid_result.engine_breakdown.ml.summary }}</p>
+                                        {% if ml_result %}
+                                        <p><strong>Model Verdict:</strong> {{ ml_result }}</p>
+                                        {% endif %}
+                                        {% if ml_confidence is not none %}
+                                        <p><strong>Model Confidence:</strong> {{ ml_confidence }}%</p>
+                                        {% endif %}
+                                    </div>
+
+                                    <div class="engine-card glass">
+                                        <p class="section-kicker">ENGINE 02</p>
+                                        <h3>NLP Analysis</h3>
+                                        <div class="engine-score-row">
+                                            <span class="engine-score-pill">{{ hybrid_result.engine_breakdown.nlp.score }}/100</span>
+                                            <span class="engine-contribution">Contribution {{ hybrid_result.engine_breakdown.nlp.contribution }}</span>
+                                        </div>
+                                        <p class="engine-summary">{{ hybrid_result.engine_breakdown.nlp.summary }}</p>
+                                        <p>
+                                            <strong>Suspicious Keywords:</strong>
+                                            {% if suspicious_keywords %}
+                                                {{ suspicious_keywords | join(", ") }}
+                                            {% else %}
+                                                None detected
+                                            {% endif %}
+                                        </p>
+                                        <p>
+                                            <strong>Brand Keywords:</strong>
+                                            {% if brand_keywords %}
+                                                {{ brand_keywords | join(", ") }}
+                                            {% else %}
+                                                None detected
+                                            {% endif %}
+                                        </p>
+                                    </div>
+
+                                    <div class="engine-card glass">
+                                        <p class="section-kicker">ENGINE 03</p>
+                                        <h3>Domain + Redirect Intelligence</h3>
+                                        <div class="engine-score-stack">
+                                            <div class="engine-mini-metric glass-inner">
+                                                <span>Domain Risk</span>
+                                                <strong>{{ hybrid_result.engine_breakdown.domain.score }}/100</strong>
+                                            </div>
+                                            <div class="engine-mini-metric glass-inner">
+                                                <span>Redirect Risk</span>
+                                                <strong>{{ hybrid_result.engine_breakdown.redirect.score }}/100</strong>
+                                            </div>
+                                        </div>
+                                        <p class="engine-summary">{{ hybrid_result.engine_breakdown.domain.summary }}</p>
+                                        <p><strong>Original Host:</strong> {{ domain_result.hostname if domain_result else "N/A" }}</p>
+                                        <p><strong>Final Host:</strong> {{ redirect_result.final_hostname if redirect_result else "N/A" }}</p>
+                                        <p><strong>Trusted Domain:</strong> {% if domain_result %}{{ "Yes" if domain_result.trusted_domain else "No" }}{% else %}N/A{% endif %}</p>
+                                        <p><strong>Brand-Domain Match:</strong> {% if domain_result %}{{ "Yes" if domain_result.brand_domain_match else "No" }}{% else %}N/A{% endif %}</p>
+                                        <p><strong>Redirect Hops:</strong> {{ redirect_result.redirect_hops if redirect_result else 0 }}</p>
+                                    </div>
+
+                                    <div class="engine-card glass">
+                                        <p class="section-kicker">ENGINE 04</p>
+                                        <h3>Webpage / Form Inspection</h3>
+                                        <div class="engine-score-row">
+                                            <span class="engine-score-pill">{{ hybrid_result.engine_breakdown.page.score }}/100</span>
+                                            <span class="engine-contribution">Contribution {{ hybrid_result.engine_breakdown.page.contribution }}</span>
+                                        </div>
+                                        <p class="engine-summary">{{ hybrid_result.engine_breakdown.page.summary }}</p>
+                                        {% if page_result %}
+                                            <p><strong>Page Accessible:</strong> {{ "Yes" if page_result.page_accessible else "No" }}</p>
+                                            <p><strong>Forms:</strong> {{ page_result.forms }}</p>
+                                            <p><strong>Password Fields:</strong> {{ page_result.password_fields }}</p>
+                                            <p><strong>External Form Actions:</strong> {{ page_result.external_form_actions }}</p>
+                                            <p><strong>Suspicious Form Actions:</strong> {{ page_result.suspicious_form_actions }}</p>
+                                            <p><strong>External Scripts:</strong> {{ page_result.external_scripts }}</p>
+                                        {% else %}
+                                            <p>No webpage inspection data available.</p>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                            </div>
+                        </section>
+
+                        <div class="details-card glass-inner text-explanation-card">
+                            <div class="section-header-inline">
+                                <div>
+                                    <p class="section-kicker">TEXT EXPLANATION</p>
+                                    <h3>Why the system decided this</h3>
+                                </div>
+                                <span class="chart-hint">Deeper reasoning for technical review</span>
+                            </div>
+                            <ul class="reasons-list">
+                                {% for reason in reasons %}
+                                <li>{{ reason }}</li>
+                                {% endfor %}
+                            </ul>
                         </div>
                     </div>
-                    {% endif %}
-
-                    <div class="details-card glass-inner">
-                        <h3>Why this result was given</h3>
-                        <ul class="reasons-list">
-                            {% for reason in reasons %}
-                            <li>{{ reason }}</li>
-                            {% endfor %}
-                        </ul>
-                    </div>
-
-                    <div class="details-card glass-inner">
-                        <h3>Recommendation</h3>
-
-                        {% if risk_level == "High" %}
-                        <p class="warning">
-                            Avoid entering personal or financial information on this link.
-                            Verify the source before opening it.
-                        </p>
-                        {% elif risk_level == "Medium" %}
-                        <p class="neutral-note">
-                            This URL shows suspicious indicators. Review it carefully before interacting with it.
-                        </p>
-                        {% elif risk_level == "Low" %}
-                        <p class="safe">
-                            No strong phishing indicators were found, but users should still verify unfamiliar URLs before trusting them.
-                        </p>
-                        {% else %}
-                        <p class="neutral-note">Result unavailable.</p>
-                        {% endif %}
-                    </div>
                 </div>
-
-                <div class="side-panel">
-
-                    <div class="engine-card glass">
-                        <p class="section-kicker">ENGINE 01</p>
-                        <h3>Machine Learning Layer</h3>
-
-                        {% if ml_result %}
-                        <p><strong>ML Result:</strong> {{ ml_result }}</p>
-                        {% endif %}
-
-                        {% if ml_confidence is not none %}
-                        <p><strong>ML Confidence:</strong> {{ ml_confidence }}%</p>
-                        {% endif %}
-                    </div>
-
-                    <div class="engine-card glass">
-                        <p class="section-kicker">ENGINE 02</p>
-                        <h3>NLP Analysis</h3>
-
-                        {% if nlp_score is not none %}
-                        <p><strong>NLP Risk Score:</strong> {{ nlp_score }}/100</p>
-
-                        <p>
-                            <strong>Suspicious Keywords:</strong>
-                            {% if suspicious_keywords %}
-                                {{ suspicious_keywords | join(", ") }}
-                            {% else %}
-                                None detected
-                            {% endif %}
-                        </p>
-
-                        <p>
-                            <strong>Brand Keywords:</strong>
-                            {% if brand_keywords %}
-                                {{ brand_keywords | join(", ") }}
-                            {% else %}
-                                None detected
-                            {% endif %}
-                        </p>
-                        {% else %}
-                        <p>No NLP analysis available.</p>
-                        {% endif %}
-                    </div>
-
-                    <div class="engine-card glass">
-                        <p class="section-kicker">ENGINE 03</p>
-                        <h3>Webpage Inspection</h3>
-
-                        {% if page_result %}
-                            {% if page_result.page_accessible %}
-                                <p><strong>Status:</strong> Successfully analyzed</p>
-                                <p><strong>Forms:</strong> {{ page_result.forms }}</p>
-                                <p><strong>Password fields:</strong> {{ page_result.password_fields }}</p>
-                                <p><strong>Iframes:</strong> {{ page_result.iframes }}</p>
-                                <p><strong>External scripts:</strong> {{ page_result.external_scripts }}</p>
-                                <p><strong>External links:</strong> {{ page_result.external_links }}</p>
-                                <p><strong>Favicon:</strong> {{ page_result.has_favicon }}</p>
-                            {% else %}
-                                <p><strong>Status:</strong> Blocked or unavailable</p>
-
-                                <p class="neutral-note">
-                                    Webpage inspection could not be completed for this site.
-                                    The final decision currently relies on URL structure analysis, NLP indicators, and domain validation.
-                                </p>
-
-                                {% if page_result.status_code %}
-                                <p><strong>HTTP Status:</strong> {{ page_result.status_code }}</p>
-                                {% endif %}
-
-                                {% if page_result.errors %}
-                                <p><strong>Inspection Note:</strong> {{ page_result.errors }}</p>
-                                {% endif %}
-                            {% endif %}
-                        {% else %}
-                            <p>No webpage inspection data available.</p>
-                        {% endif %}
-                    </div>
-
-                    <div class="engine-card glass">
-                        <p class="section-kicker">ENGINE 04</p>
-                        <h3>Domain Validator</h3>
-
-                        {% if domain_result %}
-                            <p><strong>Hostname:</strong> {{ domain_result.hostname }}</p>
-                            <p><strong>Root Domain:</strong> {{ domain_result.root_domain }}</p>
-                            <p><strong>Trusted Domain:</strong> {{ domain_result.trusted_domain }}</p>
-                            <p><strong>Brand-Domain Match:</strong> {{ domain_result.brand_domain_match }}</p>
-                            <p><strong>Brand Spoofing Suspected:</strong> {{ domain_result.brand_spoofing_suspected }}</p>
-                            <p><strong>Domain Risk Score:</strong> {{ domain_result.domain_risk_score }}/100</p>
-                        {% else %}
-                            <p>No domain validation data available.</p>
-                        {% endif %}
-                    </div>
-
-                </div>
-
             </div>
             {% endif %}
 
         </div>
     </div>
+
+    {% if hybrid_result %}
+    <script>
+        const chartData = {{ hybrid_result.chart_data | tojson }};
+
+        function updateInsight(elementId, label, text) {
+            const target = document.getElementById(elementId);
+            if (!target) {
+                return;
+            }
+
+            target.textContent = label ? `${label}: ${text}` : text;
+        }
+
+        if (window.Chart && chartData) {
+            const radarContext = document.getElementById("riskRadarChart");
+            const contributionContext = document.getElementById("contributionChart");
+
+            if (radarContext) {
+                new Chart(radarContext, {
+                    type: "radar",
+                    data: {
+                        labels: chartData.radar_labels,
+                        datasets: [{
+                            label: "Engine Risk",
+                            data: chartData.radar_values,
+                            fill: true,
+                            backgroundColor: "rgba(82, 210, 255, 0.14)",
+                            borderColor: "#67d6ff",
+                            borderWidth: 2,
+                            pointBackgroundColor: ["#67d6ff", "#77ffc6", "#ffb45d", "#ff7d8d", "#c3ff61"],
+                            pointBorderColor: "#04111d",
+                            pointHoverRadius: 7,
+                            pointRadius: 5
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        layout: {
+                            padding: {
+                                top: 22,
+                                right: 34,
+                                bottom: 22,
+                                left: 34
+                            }
+                        },
+                        plugins: {
+                            legend: { display: false },
+                            tooltip: {
+                                callbacks: {
+                                    label: function(context) {
+                                        const idx = context.dataIndex;
+                                        return `${context.label}: ${chartData.radar_values[idx]}/100`;
+                                    },
+                                    afterLabel: function(context) {
+                                        return chartData.radar_explanations[context.dataIndex];
+                                    }
+                                }
+                            }
+                        },
+                        scales: {
+                            r: {
+                                suggestedMin: 0,
+                                suggestedMax: 100,
+                                ticks: {
+                                    color: "rgba(228, 241, 255, 0.7)",
+                                    backdropColor: "transparent",
+                                    stepSize: 20,
+                                    font: { size: 11 }
+                                },
+                                grid: { color: "rgba(255,255,255,0.10)" },
+                                angleLines: { color: "rgba(255,255,255,0.08)" },
+                                pointLabels: {
+                                    color: "#eaf2ff",
+                                    font: { size: 14, weight: "600" }
+                                }
+                            }
+                        },
+                        onHover: function(event, activeElements) {
+                            if (activeElements.length > 0) {
+                                const idx = activeElements[0].index;
+                                updateInsight("radarInsightText", chartData.radar_labels[idx], chartData.radar_explanations[idx]);
+                            }
+                        }
+                    }
+                });
+            }
+
+            if (contributionContext) {
+                new Chart(contributionContext, {
+                    type: "bar",
+                    data: {
+                        labels: chartData.contribution_labels,
+                        datasets: [{
+                            label: "Contribution",
+                            data: chartData.contribution_values,
+                            backgroundColor: [
+                                "rgba(103, 214, 255, 0.72)",
+                                "rgba(119, 255, 198, 0.72)",
+                                "rgba(255, 180, 93, 0.72)",
+                                "rgba(255, 125, 141, 0.72)",
+                                "rgba(195, 255, 97, 0.72)"
+                            ],
+                            borderRadius: 12,
+                            borderSkipped: false
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        layout: {
+                            padding: {
+                                top: 10,
+                                right: 10,
+                                bottom: 4,
+                                left: 6
+                            }
+                        },
+                        plugins: {
+                            legend: { display: false },
+                            tooltip: {
+                                callbacks: {
+                                    label: function(context) {
+                                        return `${context.label}: ${context.raw}`;
+                                    },
+                                    afterLabel: function(context) {
+                                        return chartData.contribution_explanations[context.dataIndex];
+                                    }
+                                }
+                            }
+                        },
+                        scales: {
+                            x: {
+                                ticks: { color: "#eaf2ff" },
+                                grid: { display: false }
+                            },
+                            y: {
+                                beginAtZero: true,
+                                ticks: { color: "rgba(228, 241, 255, 0.7)" },
+                                grid: { color: "rgba(255,255,255,0.08)" }
+                            }
+                        },
+                        onHover: function(event, activeElements) {
+                            if (activeElements.length > 0) {
+                                const idx = activeElements[0].index;
+                                updateInsight("contributionInsightText", chartData.contribution_labels[idx], chartData.contribution_explanations[idx]);
+                            }
+                        }
+                    }
+                });
+            }
+        }
+    </script>
+    {% endif %}
 </body>
 </html>

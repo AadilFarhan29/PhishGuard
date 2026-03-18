@@ -239,14 +239,14 @@ COMMON_SECOND_LEVEL_SUFFIXES = {
 
 
 def get_hostname(url: str) -> str:
-    parsed = urlparse(url.strip())
+    parsed = urlparse((url or "").strip())
     if not parsed.netloc:
-        parsed = urlparse("https://" + url.strip())
+        parsed = urlparse("https://" + (url or "").strip())
     return parsed.netloc.lower().split(":")[0]
 
 
 def get_root_domain(hostname: str) -> str:
-    parts = [p for p in hostname.split(".") if p]
+    parts = [part for part in (hostname or "").split(".") if part]
 
     if len(parts) <= 2:
         return hostname
@@ -257,75 +257,169 @@ def get_root_domain(hostname: str) -> str:
     if last_two in COMMON_SECOND_LEVEL_SUFFIXES and len(parts) >= 3:
         return last_three
 
-    if ".".join(parts[-2:]) in {"co.uk", "co.jp", "com.au", "co.in"} and len(parts) >= 3:
-        return ".".join(parts[-3:])
-
-    return ".".join(parts[-2:])
+    return last_two
 
 
 def domain_matches(hostname: str, trusted_domain: str) -> bool:
     return hostname == trusted_domain or hostname.endswith("." + trusted_domain)
 
 
-def validate_domain(url: str, brand_keywords=None):
+def get_trusted_domains_for_brand(brand: str):
+    return TRUSTED_BRAND_DOMAINS.get((brand or "").lower(), [])
+
+
+def find_trusted_match(hostname: str):
+    for trusted_domain in sorted(POPULAR_TRUSTED_DOMAINS, key=len, reverse=True):
+        if domain_matches(hostname, trusted_domain):
+            return trusted_domain
+    return None
+
+
+def is_trusted_hostname(hostname: str) -> bool:
+    return find_trusted_match(hostname) is not None
+
+
+def _append_reason(reasons, reason):
+    if reason and reason not in reasons:
+        reasons.append(reason)
+
+
+def validate_domain(url: str, brand_keywords=None, final_url: str = None):
     if brand_keywords is None:
         brand_keywords = []
 
     hostname = get_hostname(url)
     root_domain = get_root_domain(hostname)
 
+    final_hostname = get_hostname(final_url) if final_url else hostname
+    final_root_domain = get_root_domain(final_hostname)
+
+    original_trusted_match = find_trusted_match(hostname)
+    final_trusted_match = find_trusted_match(final_hostname)
+
     result = {
         "hostname": hostname,
         "root_domain": root_domain,
-        "trusted_domain": False,
-        "trusted_match_domain": None,
+        "final_hostname": final_hostname,
+        "final_root_domain": final_root_domain,
+        "original_trusted_domain": original_trusted_match is not None,
+        "final_trusted_domain": final_trusted_match is not None,
+        "trusted_domain": final_trusted_match is not None or original_trusted_match is not None,
+        "trusted_match_domain": final_trusted_match or original_trusted_match,
         "brand_domain_match": False,
         "brand_spoofing_suspected": False,
         "matched_brands": [],
-        "domain_risk_score": 0,
+        "final_domain_matches_original": final_root_domain == root_domain,
+        "domain_risk_score": 25,
         "domain_reasons": []
     }
 
-    for trusted in POPULAR_TRUSTED_DOMAINS:
-        if domain_matches(hostname, trusted):
-            result["trusted_domain"] = True
-            result["trusted_match_domain"] = trusted
-            result["domain_risk_score"] -= 25
-            result["domain_reasons"].append(
-                f"The URL belongs to a recognized trusted domain: {trusted}."
-            )
-            break
+    if original_trusted_match:
+        result["domain_risk_score"] -= 12
+        _append_reason(
+            result["domain_reasons"],
+            f"The submitted hostname is a recognized trusted domain: {original_trusted_match}."
+        )
 
-    for brand in brand_keywords:
-        if brand not in TRUSTED_BRAND_DOMAINS:
-            continue
-
-        result["matched_brands"].append(brand)
-        trusted_domains = TRUSTED_BRAND_DOMAINS[brand]
-
-        if not trusted_domains:
-            result["domain_risk_score"] += 6
-            result["domain_reasons"].append(
-                f"The URL contains a sensitive brand/category term ('{brand}'), but it does not have a strict trusted-domain mapping."
-            )
-            continue
-
-        matched = any(domain_matches(hostname, d) for d in trusted_domains)
-
-        if matched:
-            result["brand_domain_match"] = True
-            result["trusted_domain"] = True
-            result["domain_risk_score"] -= 30
-            result["domain_reasons"].append(
-                f"Brand term '{brand}' matches an official trusted domain."
+    if final_trusted_match:
+        result["domain_risk_score"] -= 16
+        if final_hostname == hostname:
+            _append_reason(
+                result["domain_reasons"],
+                f"The resolved hostname is a recognized trusted domain: {final_trusted_match}."
             )
         else:
-            result["brand_spoofing_suspected"] = True
-            result["domain_risk_score"] += 35
-            result["domain_reasons"].append(
-                f"Brand term '{brand}' appears in the URL, but the domain does not match an official trusted domain."
+            _append_reason(
+                result["domain_reasons"],
+                f"The final resolved hostname belongs to a trusted domain: {final_trusted_match}."
             )
 
-    result["domain_risk_score"] = max(0, min(100, result["domain_risk_score"] + 25))
+    if final_root_domain != root_domain:
+        result["domain_risk_score"] += 10
+        _append_reason(
+            result["domain_reasons"],
+            "The original hostname and the final resolved hostname belong to different registered domains."
+        )
+    elif final_hostname != hostname:
+        _append_reason(
+            result["domain_reasons"],
+            "The URL redirects within the same registered domain, which is less suspicious than a cross-domain redirect."
+        )
+
+    brand_matches = []
+    original_only_brand_matches = []
+    unmatched_brands = []
+
+    for brand in sorted(set(brand_keywords)):
+        trusted_domains = get_trusted_domains_for_brand(brand)
+        result["matched_brands"].append(brand)
+
+        if not trusted_domains:
+            unmatched_brands.append((brand, False))
+            continue
+
+        original_brand_match = any(domain_matches(hostname, domain) for domain in trusted_domains)
+        final_brand_match = any(domain_matches(final_hostname, domain) for domain in trusted_domains)
+
+        if final_brand_match:
+            brand_matches.append(brand)
+        elif original_brand_match:
+            original_only_brand_matches.append(brand)
+        else:
+            unmatched_brands.append((brand, True))
+
+    if brand_matches:
+        result["brand_domain_match"] = True
+        result["trusted_domain"] = True
+        result["domain_risk_score"] -= 26
+        _append_reason(
+            result["domain_reasons"],
+            f"Detected brand context aligns with an official trusted final domain: {', '.join(brand_matches)}."
+        )
+
+    if original_only_brand_matches:
+        if final_root_domain != root_domain:
+            result["brand_spoofing_suspected"] = True
+            result["domain_risk_score"] += 12
+            _append_reason(
+                result["domain_reasons"],
+                f"The original hostname matched brand context ({', '.join(original_only_brand_matches)}), but the final destination moved away from that trusted domain."
+            )
+        else:
+            result["domain_risk_score"] -= 12
+            _append_reason(
+                result["domain_reasons"],
+                f"Detected brand context remains on the expected domain: {', '.join(original_only_brand_matches)}."
+            )
+
+    if unmatched_brands and not brand_matches:
+        mapped_unmatched = [brand for brand, has_mapping in unmatched_brands if has_mapping]
+        unmapped_brands = [brand for brand, has_mapping in unmatched_brands if not has_mapping]
+
+        if mapped_unmatched:
+            result["brand_spoofing_suspected"] = True
+            result["domain_risk_score"] += 34
+            _append_reason(
+                result["domain_reasons"],
+                f"Brand terms appear in the URL context, but neither the original nor final domain matches the official domain for: {', '.join(mapped_unmatched)}."
+            )
+
+        for brand in unmapped_brands:
+            result["domain_risk_score"] += 6
+            _append_reason(
+                result["domain_reasons"],
+                f"The URL contains the sensitive brand/category term '{brand}', but it does not have a strict trusted-domain mapping."
+            )
+
+    if result["trusted_domain"] and result["brand_domain_match"] and not result["brand_spoofing_suspected"]:
+        result["domain_risk_score"] -= 8
+
+    result["domain_risk_score"] = max(0, min(100, result["domain_risk_score"]))
+
+    if not result["domain_reasons"]:
+        _append_reason(
+            result["domain_reasons"],
+            "No strong domain trust or spoofing indicators were found from hostname analysis."
+        )
 
     return result
