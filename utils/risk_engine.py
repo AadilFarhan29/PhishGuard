@@ -284,6 +284,20 @@ def evaluate_risk(
                     "Score capped: domain is verified trusted, so phishing verdict is limited to Suspicious."
                 )
 
+    # --- Brand Spoofing Hard Override ---
+    # If domain validator confirmed brand spoofing, ML safe verdict is
+    # irrelevant. Force score to at least the High threshold.
+    brand_spoofing = (domain_result or {}).get("brand_spoofing_suspected", False)
+
+    if brand_spoofing and not trusted_domain:
+        if final_score < 72:
+            final_score = 72
+            _append_unique(
+                reasons,
+                "Score forced to High: brand name detected in URL but domain does not match the official brand domain — strong spoofing signal."
+            )
+            _append_unique(top_findings, "Brand spoofing confirmed")
+
     if final_score >= 72:
         final_result = "Potential Phishing"
         final_risk_level = "High"
