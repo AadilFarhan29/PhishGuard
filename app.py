@@ -9,6 +9,7 @@ from utils.page_analyzer import analyze_webpage
 from utils.domain_validator import validate_domain
 from utils.redirect_analyzer import analyze_redirects
 from utils.risk_engine import evaluate_risk
+from utils.safe_browsing import check_url_safe_browsing
 
 app = Flask(__name__)
 
@@ -82,6 +83,7 @@ def index():
 
     ml_result = None
     ml_confidence = None
+    safe_browsing_result = None
 
     if request.method == "POST":
         submitted_url = request.form.get("url", "").strip()
@@ -95,60 +97,75 @@ def index():
                 risk_level = "Unavailable"
                 reasons = ["The live model or feature configuration could not be loaded."]
             else:
-                extracted_features = extract_url_features(submitted_url)
+                # --- Google Safe Browsing Check (runs first) ---
+                safe_browsing_result = check_url_safe_browsing(submitted_url)
 
-                nlp_result = analyze_url_nlp(submitted_url)
-                nlp_score = nlp_result["nlp_risk_score"]
-                suspicious_keywords = nlp_result["suspicious_keywords"]
-                brand_keywords = nlp_result["brand_keywords"]
+                if safe_browsing_result.get("api_available") and safe_browsing_result.get("is_threat"):
+                    # Google confirmed threat — skip ML pipeline, return immediately
+                    threat_type = safe_browsing_result.get("threat_type", "THREAT")
+                    result = "Potential Phishing"
+                    risk_level = "High"
+                    final_score = 95
+                    analysis_confidence = 99
+                    reasons = [
+                        f"Google Safe Browsing flagged this URL as: {threat_type.replace('_', ' ').title()}.",
+                        "This URL appears in Google's actively maintained threat database.",
+                        "Confirmed threat — do not visit this link."
+                    ]
+                    top_findings = ["Confirmed by Google Safe Browsing"]
 
-                redirect_result = analyze_redirects(submitted_url, brand_keywords=brand_keywords)
-                final_analysis_url = redirect_result.get("final_url") if redirect_result else submitted_url
-                page_result = analyze_webpage(final_analysis_url)
-                domain_result = validate_domain(
-                    submitted_url,
-                    brand_keywords=brand_keywords,
-                    final_url=final_analysis_url
-                )
-
-                feature_row = {col: extracted_features.get(col, 0) for col in feature_columns}
-                feature_df = pd.DataFrame([feature_row])
-
-                prediction = model.predict(feature_df)[0]
-
-                proba = None
-                if hasattr(model, "predict_proba"):
-                    proba = model.predict_proba(feature_df)[0]
-
-                # Dataset mapping:
-                # 1 = legitimate
-                # 0 = phishing
-                if prediction == 1:
-                    ml_result = "Likely Safe"
-                    ml_confidence = round(proba[1] * 100, 2) if proba is not None else None
                 else:
-                    ml_result = "Potential Phishing"
-                    ml_confidence = round(proba[0] * 100, 2) if proba is not None else None
+                    extracted_features = extract_url_features(submitted_url)
 
-                url_reasons = generate_explanations(extracted_features)
+                    nlp_result = analyze_url_nlp(submitted_url)
+                    nlp_score = nlp_result["nlp_risk_score"]
+                    suspicious_keywords = nlp_result["suspicious_keywords"]
+                    brand_keywords = nlp_result["brand_keywords"]
 
-                hybrid_result = evaluate_risk(
-                    ml_prediction=prediction,
-                    ml_confidence=ml_confidence,
-                    nlp_result=nlp_result,
-                    page_result=page_result,
-                    domain_result=domain_result,
-                    redirect_result=redirect_result,
-                    extracted_features=extracted_features,
-                    url_reasons=url_reasons
-                )
+                    redirect_result = analyze_redirects(submitted_url, brand_keywords=brand_keywords)
+                    final_analysis_url = redirect_result.get("final_url") if redirect_result else submitted_url
+                    page_result = analyze_webpage(final_analysis_url)
+                    domain_result = validate_domain(
+                        submitted_url,
+                        brand_keywords=brand_keywords,
+                        final_url=final_analysis_url
+                    )
 
-                result = hybrid_result["final_result"]
-                risk_level = hybrid_result["final_risk_level"]
-                final_score = hybrid_result["final_score"]
-                analysis_confidence = hybrid_result["final_confidence"]
-                reasons = hybrid_result["reasons"]
-                top_findings = hybrid_result["top_findings"]
+                    feature_row = {col: extracted_features.get(col, 0) for col in feature_columns}
+                    feature_df = pd.DataFrame([feature_row])
+
+                    prediction = model.predict(feature_df)[0]
+
+                    proba = None
+                    if hasattr(model, "predict_proba"):
+                        proba = model.predict_proba(feature_df)[0]
+
+                    if prediction == 1:
+                        ml_result = "Likely Safe"
+                        ml_confidence = round(proba[1] * 100, 2) if proba is not None else None
+                    else:
+                        ml_result = "Potential Phishing"
+                        ml_confidence = round(proba[0] * 100, 2) if proba is not None else None
+
+                    url_reasons = generate_explanations(extracted_features)
+
+                    hybrid_result = evaluate_risk(
+                        ml_prediction=prediction,
+                        ml_confidence=ml_confidence,
+                        nlp_result=nlp_result,
+                        page_result=page_result,
+                        domain_result=domain_result,
+                        redirect_result=redirect_result,
+                        extracted_features=extracted_features,
+                        url_reasons=url_reasons
+                    )
+
+                    result = hybrid_result["final_result"]
+                    risk_level = hybrid_result["final_risk_level"]
+                    final_score = hybrid_result["final_score"]
+                    analysis_confidence = hybrid_result["final_confidence"]
+                    reasons = hybrid_result["reasons"]
+                    top_findings = hybrid_result["top_findings"]
 
     return render_template(
         "index.html",
@@ -167,7 +184,8 @@ def index():
         redirect_result=redirect_result,
         hybrid_result=hybrid_result,
         ml_result=ml_result,
-        ml_confidence=ml_confidence
+        ml_confidence=ml_confidence,
+        safe_browsing_result=safe_browsing_result
     )
 
 

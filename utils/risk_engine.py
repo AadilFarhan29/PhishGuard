@@ -261,6 +261,29 @@ def evaluate_risk(
 
     final_score = _clamp_score(sum(engine_points.values()))
 
+    # --- Trusted Domain Score Cap ---
+    # If the domain is verified trusted, the system should never return
+    # a "Phishing" verdict purely due to URL complexity or NLP hits.
+    trusted_domain = (domain_result or {}).get("trusted_domain", False)
+
+    if trusted_domain:
+        if ml_prediction == 1:
+            # ML says safe + trusted domain → hard cap at Safe zone
+            if final_score > 41:
+                final_score = 41
+                _append_unique(
+                    reasons,
+                    "Score capped: domain is verified trusted and ML classified this URL as legitimate."
+                )
+        else:
+            # ML says phishing but domain is trusted → cap at Suspicious max (never Phishing)
+            if final_score > 65:
+                final_score = 65
+                _append_unique(
+                    reasons,
+                    "Score capped: domain is verified trusted, so phishing verdict is limited to Suspicious."
+                )
+
     if final_score >= 72:
         final_result = "Potential Phishing"
         final_risk_level = "High"
