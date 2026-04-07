@@ -17,7 +17,7 @@ from sklearn.metrics import (
 )
 from sklearn.model_selection import train_test_split
 
-from utils.features import extract_url_features
+from utils.features_old import extract_url_features
 
 
 DATA_PATH = "data/phiusiil.csv"

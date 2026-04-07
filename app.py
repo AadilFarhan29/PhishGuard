@@ -3,7 +3,7 @@ import joblib
 import pandas as pd
 from flask import Flask, render_template, request
 
-from utils.features import extract_url_features
+from utils.features_old import extract_url_features
 from utils.nlp_analyzer import analyze_url_nlp
 from utils.page_analyzer import analyze_webpage
 from utils.domain_validator import validate_domain

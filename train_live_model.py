@@ -6,7 +6,7 @@ from sklearn.model_selection import train_test_split
 from sklearn.metrics import accuracy_score, classification_report, confusion_matrix, f1_score
 from sklearn.ensemble import RandomForestClassifier
 
-from utils.features import extract_url_features
+from utils.features_old import extract_url_features
 
 
 DATA_PATH = "data/phiusiil.csv"
