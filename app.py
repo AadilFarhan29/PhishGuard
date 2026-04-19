@@ -29,32 +29,53 @@ if os.path.exists(FEATURE_COLUMNS_PATH):
 def generate_explanations(features):
     reasons = []
 
-    if features["URLLength"] > 75:
+    if features.get("length_url", 0) > 75:
         reasons.append("The URL is unusually long.")
 
-    if features["IsDomainIP"] == 1:
-        reasons.append("The link uses an IP address instead of a normal domain.")
+    if features.get("length_hostname", 0) > 30:
+        reasons.append("The domain name is unusually long.")
 
-    if features["NoOfSubDomain"] > 2:
-        reasons.append("The URL contains many subdomains.")
+    if features.get("ip", 0) == 1:
+        reasons.append("The link uses an IP address instead of a normal domain name.")
 
-    if features["HasObfuscation"] == 1:
-        reasons.append("The URL contains obfuscation characters such as '%' or '@'.")
+    if features.get("nb_subdomains", 0) > 2:
+        reasons.append("The URL contains many subdomains, which can be used to mimic trusted sites.")
 
-    if features["UsesShortener"] == 1:
-        reasons.append("The URL uses a shortening service.")
+    if features.get("prefix_suffix", 0) == 1:
+        reasons.append("The domain contains a hyphen, which is sometimes used in deceptive domains.")
 
-    if features["HasSuspiciousKeyword"] == 1:
-        reasons.append("The URL path or query contains suspicious phishing-related keywords.")
+    if features.get("shortening_service", 0) == 1:
+        reasons.append("The URL uses a shortening service, which can hide the real destination.")
 
-    if features["NoOfQMarkInURL"] > 1 or features["NoOfAmpersandInURL"] > 2:
+    if features.get("nb_at", 0) > 0:
+        reasons.append("The URL contains an '@' symbol, which is commonly used in misleading links.")
+
+    if features.get("nb_percent", 0) > 0:
+        reasons.append("The URL contains encoded or obfuscated characters.")
+
+    if features.get("nb_qm", 0) > 1 or features.get("nb_and", 0) > 2 or features.get("nb_eq", 0) > 2:
         reasons.append("The URL contains excessive query parameters.")
 
-    if features["NoOfOtherSpecialCharsInURL"] > 5:
-        reasons.append("The URL contains an unusual number of special characters.")
+    if features.get("https_token", 0) == 0:
+        reasons.append("The link does not appear to use HTTPS properly.")
 
-    if features["IsHTTPS"] == 0:
-        reasons.append("The link does not use HTTPS encryption.")
+    if features.get("tld_in_subdomain", 0) == 1:
+        reasons.append("The URL contains a TLD-like word inside the subdomain, which can be deceptive.")
+
+    if features.get("abnormal_subdomain", 0) == 1:
+        reasons.append("The subdomain appears to imitate a known brand or trusted domain structure.")
+
+    if features.get("phish_hints", 0) >= 2:
+        reasons.append("The URL contains multiple phishing-related keywords.")
+
+    if features.get("nb_redirection", 0) > 0:
+        reasons.append("The URL structure suggests possible embedded redirection.")
+
+    if features.get("ratio_digits_url", 0) > 0.3:
+        reasons.append("The URL contains an unusually high number of digits.")
+
+    if features.get("longest_words_raw", 0) > 20:
+        reasons.append("The URL contains unusually long word segments.")
 
     if not reasons:
         reasons.append("No strong suspicious indicators were detected from the URL structure.")
