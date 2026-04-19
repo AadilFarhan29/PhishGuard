@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>PhishGuard</title>
+  <link rel="stylesheet" href="popup.css" />
+</head>
+<body>
+  <div class="bg-grid"></div>
+  <div class="scanlines"></div>
+  <div class="bg-glow-top"></div>
+
+  <div class="popup-shell">
+    <header class="topbar">
+      <div class="brand-wrap">
+        <div class="logo-mark">PG</div>
+        <div class="brand-text">
+          <div class="brand-main">PHISHGUARD</div>
+          <div class="brand-sub">BROWSER LINK SCANNER</div>
+        </div>
+      </div>
+
+      <div class="live-status">
+        <span class="status-dot"></span>
+        <span>ACTIVE</span>
+      </div>
+    </header>
+
+    <div id="statusBanner" class="status-banner status-neutral">
+      <span id="statusText">No scan yet.</span>
+    </div>
+
+    <section id="verdictCard" class="verdict-card verdict-neutral">
+      <div class="verdict-label">LATEST VERDICT</div>
+      <div id="verdict" class="verdict-value">—</div>
+      <div id="riskLevel" class="verdict-risk">—</div>
+    </section>
+
+    <section class="panel">
+      <div class="panel-label">SCANNED URL</div>
+      <div id="url" class="panel-value url-value">—</div>
+    </section>
+
+    <section class="metrics-grid">
+      <div class="metric-card">
+        <div class="metric-label">RISK SCORE</div>
+        <div id="score" class="metric-value">—</div>
+      </div>
+
+      <div class="metric-card">
+        <div class="metric-label">STATUS</div>
+        <div id="miniStatus" class="metric-value mini-status">READY</div>
+      </div>
+    </section>
+
+    <section class="panel">
+      <div class="panel-label">SUMMARY</div>
+      <div id="summary" class="panel-value summary-value">—</div>
+    </section>
+  </div>
+
+  <script src="popup.js"></script>
+</body>
+</html>

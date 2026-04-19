@@ -161,7 +161,7 @@ def evaluate_risk(
 
     suspicious_keywords = nlp_result.get("suspicious_keywords", [])
     brand_keywords = nlp_result.get("brand_keywords", [])
-    uses_shortener = extracted_features.get("UsesShortener") == 1
+    uses_shortener = extracted_features.get("shortening_service") == 1
     password_fields = (page_result or {}).get("password_fields", 0)
     same_domain_forms = (page_result or {}).get("same_domain_form_actions", 0)
     external_form_actions = (page_result or {}).get("external_form_actions", 0)
