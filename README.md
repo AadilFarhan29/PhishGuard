@@ -99,25 +99,28 @@ PhishGuard/
     ├── popup.html
     ├── popup.js
     └── popup.css
-Tech Stack
-Python
-Flask
-Pandas
-Joblib
-Scikit-learn
-Flask-CORS
-HTML / CSS / JavaScript
-Chrome / Edge Extension (Manifest V3)
-Web Application
+```
+
+## Tech Stack
+
+- Python
+- Flask
+- Pandas
+- Joblib
+- Scikit-learn
+- Flask-CORS
+- HTML / CSS / JavaScript
+- Chrome / Edge Extension (Manifest V3)
+- Web Application
 
 The web version allows a user to paste a suspicious URL and receive:
 
-verdict
-risk level
-score
-summary
-supporting reasons
-Browser Extension
+- verdict
+- risk level
+- score
+- summary
+- supporting reasons
+- Browser Extension
 
 PhishGuard also supports a browser extension for Chrome / Edge.
 
@@ -129,12 +132,13 @@ View result in a popup interface
 
 This allows PhishGuard to work across websites such as:
 
-WhatsApp Web
-Reddit
-Gmail
-forums
+- Reddit
+- Gmail
+- forums
 other browser pages containing links
-Installation
+
+## Installation
+
 1. Clone the repository
 git clone https://github.com/AadilFarhan29/PhishGuard.git
 cd PhishGuard
@@ -165,7 +169,9 @@ Example response
     "final_score": 14.61
   }
 }
-Extension Setup
+
+## Extension Setup
+
 Open your browser extensions page:
 chrome://extensions
 or edge://extensions
